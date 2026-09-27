@@ -1,4 +1,4 @@
-import { _decorator, Component, instantiate, Node, NodePool, Prefab } from 'cc';
+import { _decorator, Component, instantiate, Node, NodePool, Prefab, UITransform } from 'cc';
 import { GameControl } from './GameControl';
 
 const { ccclass, property } = _decorator;
@@ -11,14 +11,21 @@ export class PipePool extends Component {
     @property({ type: GameControl })
     gameControl: GameControl | null = null;
 
+    @property({ type: Node })
+    bird: Node | null = null;
+
     private pool = new NodePool();
     private activePipes: Node[] = [];
+    private scoredPairs = new Set<Node>();
     private spawnTimer = 0;
     private readonly speed = 100;
     private readonly spawnInterval = 2.1;
 
     update(deltaTime: number) {
         if (!this.gameControl?.isPlaying) return;
+
+        const birdLeft = this.bird?.getComponent(UITransform)
+            ?.getBoundingBoxToWorld().xMin;
 
         this.spawnTimer += deltaTime;
         if (this.spawnTimer >= this.spawnInterval) {
@@ -36,8 +43,18 @@ export class PipePool extends Component {
             top.setPosition(x, top.position.y, 0);
             bottom.setPosition(x, bottom.position.y, 0);
 
+            if (birdLeft !== undefined && !this.scoredPairs.has(pair)) {
+                const pipeBounds = top.getComponent(UITransform)
+                    ?.getBoundingBoxToWorld();
+                if (pipeBounds && pipeBounds.xMax < birdLeft) {
+                    this.scoredPairs.add(pair);
+                    this.gameControl.addPoint();
+                }
+            }
+
             if (x < -180) {
                 this.activePipes.splice(i, 1);
+                this.scoredPairs.delete(pair);
                 pair.active = false;
                 this.pool.put(pair);
             }
@@ -49,6 +66,7 @@ export class PipePool extends Component {
 
         const pair = this.pool.get() ?? instantiate(this.pipePairPrefab);
         pair.active = false;
+        this.scoredPairs.delete(pair);
 
         const top = pair.getChildByName('pipe-top');
         const bottom = pair.getChildByName('pipe-bottom');
@@ -70,7 +88,18 @@ export class PipePool extends Component {
         this.activePipes.push(pair);
     }
 
+    public resetPipes() {
+        this.spawnTimer = 0;
+        for (const pair of this.activePipes) {
+            pair.active = false;
+            this.pool.put(pair);
+        }
+        this.activePipes.length = 0;
+        this.scoredPairs.clear();
+    }
+
     onDestroy() {
+        this.scoredPairs.clear();
         this.pool.clear();
     }
 }

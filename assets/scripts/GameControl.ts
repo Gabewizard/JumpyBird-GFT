@@ -5,7 +5,7 @@
  * Date: September 27, 2026
  */
 
-import { _decorator, Component, Label, Node } from 'cc';
+import { _decorator, AudioClip, AudioSource, Component, Label, Node } from 'cc';
 
 const { ccclass, property } = _decorator;
 
@@ -20,8 +20,26 @@ export class GameControl extends Component {
     @property({ type: Node })
     gameOverLabel: Node | null = null;
 
+    @property({ type: AudioClip })
+    pointSound: AudioClip | null = null;
+
+    @property({ type: AudioClip })
+    swooshSound: AudioClip | null = null;
+
+    @property({ type: AudioClip })
+    hitSound: AudioClip | null = null;
+
+    @property({ type: AudioClip })
+    dieSound: AudioClip | null = null;
+
     public isPlaying = false;
     private score = 0;
+
+    private playDieSound = () => {
+        if (this.dieSound) {
+            this.getComponent(AudioSource)?.playOneShot(this.dieSound, 1);
+        }
+    };
 
     start() {
         this.resetGame();
@@ -37,14 +55,32 @@ export class GameControl extends Component {
         if (!this.isPlaying) return;
         this.score++;
         this.updateScoreLabel();
+        if (this.pointSound) {
+            this.getComponent(AudioSource)?.playOneShot(this.pointSound, 1);
+        }
+    }
+
+    public playSwoosh() {
+        if (this.swooshSound) {
+            this.getComponent(AudioSource)?.playOneShot(this.swooshSound, 1);
+        }
     }
 
     public gameOver() {
+        if (!this.isPlaying) return;
         this.isPlaying = false;
         if (this.gameOverLabel) this.gameOverLabel.active = true;
+
+        if (this.hitSound) {
+            this.getComponent(AudioSource)?.playOneShot(this.hitSound, 1);
+        }
+        if (this.dieSound) {
+            this.scheduleOnce(this.playDieSound, 0.25);
+        }
     }
 
     public resetGame() {
+        this.unschedule(this.playDieSound);
         this.score = 0;
         this.isPlaying = false;
         this.updateScoreLabel();

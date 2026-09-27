@@ -1,9 +1,10 @@
 import {
     _decorator, Collider2D, Component, Contact2DType,
     EventKeyboard, Input, input, KeyCode,
-    PhysicsSystem2D, RigidBody2D, Vec2, EPhysics2DDrawFlags
+    PhysicsSystem2D, RigidBody2D, Vec2, Vec3, EPhysics2DDrawFlags
 } from 'cc';
 import { GameControl } from './GameControl';
+import { PipePool } from './PipePool';
 
 const { ccclass, property } = _decorator;
 
@@ -12,11 +13,16 @@ export class Bird extends Component {
     @property({ type: GameControl })
     gameControl: GameControl | null = null;
 
+    @property({ type: PipePool })
+    pipePool: PipePool | null = null;
+
     private body: RigidBody2D | null = null;
     private hasCrashed = false;
+    private startPosition = new Vec3();
 
     start() {
-        PhysicsSystem2D.instance.debugDrawFlags = EPhysics2DDrawFlags.Shape;
+        this.startPosition = this.node.position.clone();
+        PhysicsSystem2D.instance.debugDrawFlags = EPhysics2DDrawFlags.None;
         PhysicsSystem2D.instance.gravity = new Vec2(0, -320);
         this.body = this.getComponent(RigidBody2D);
 
@@ -47,7 +53,12 @@ export class Bird extends Component {
     }
 
     private flap() {
-        if (!this.gameControl || !this.body || this.hasCrashed) return;
+        if (this.hasCrashed) {
+            this.restartGame();
+            return;
+        }
+
+        if (!this.gameControl || !this.body) return;
 
         if (!this.gameControl.isPlaying) {
             this.gameControl.startGame();
@@ -55,6 +66,19 @@ export class Bird extends Component {
 
         this.body.gravityScale = 1;
         this.body.linearVelocity = new Vec2(0, 7);
+        this.gameControl.playSwoosh();
+    }
+
+    private restartGame() {
+        if (!this.gameControl || !this.pipePool || !this.body) return;
+
+        this.pipePool.resetPipes();
+        this.body.gravityScale = 0;
+        this.body.linearVelocity = new Vec2(0, 0);
+        this.body.angularVelocity = 0;
+        this.node.setPosition(this.startPosition);
+        this.gameControl.resetGame();
+        this.hasCrashed = false;
     }
 
     private onBeginContact() {
