@@ -1,6 +1,6 @@
 import {
     _decorator, Component, EventKeyboard, Input, input,
-    KeyCode, tween, Tween, Vec3
+    KeyCode, RigidBody2D, Vec2, PhysicsSystem2D
 } from 'cc';
 import { GameControl } from './GameControl';
 
@@ -11,6 +11,17 @@ export class Bird extends Component {
     @property({ type: GameControl })
     gameControl: GameControl | null = null;
 
+    private body: RigidBody2D | null = null;
+
+    start() {
+        PhysicsSystem2D.instance.gravity = new Vec2(0, -320);
+        this.body = this.getComponent(RigidBody2D);
+        if (this.body) {
+            this.body.gravityScale = 0;
+            this.body.linearVelocity = new Vec2(0, 0);
+        }
+    }
+
     onEnable() {
         input.on(Input.EventType.MOUSE_DOWN, this.flap, this);
         input.on(Input.EventType.KEY_DOWN, this.onKeyDown, this);
@@ -19,7 +30,6 @@ export class Bird extends Component {
     onDisable() {
         input.off(Input.EventType.MOUSE_DOWN, this.flap, this);
         input.off(Input.EventType.KEY_DOWN, this.onKeyDown, this);
-        Tween.stopAllByTarget(this.node);
     }
 
     private onKeyDown(event: EventKeyboard) {
@@ -27,17 +37,13 @@ export class Bird extends Component {
     }
 
     private flap() {
-        if (!this.gameControl) return;
+        if (!this.gameControl || !this.body) return;
 
         if (!this.gameControl.isPlaying) {
             this.gameControl.startGame();
         }
 
-        Tween.stopAllByTarget(this.node);
-
-        tween(this.node)
-            .by(0.15, { position: new Vec3(0, 45, 0) }, { easing: 'sineOut' })
-            .by(0.35, { position: new Vec3(0, -45, 0) }, { easing: 'sineIn' })
-            .start();
+        this.body.gravityScale = 1;
+        this.body.linearVelocity = new Vec2(0, 7);
     }
 }
